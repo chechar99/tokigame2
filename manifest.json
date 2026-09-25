@@ -1,0 +1,9 @@
+{
+  "name": "Toki - Una aventura en Córdoba",
+  "short_name": "Toki",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#140e22",
+  "theme_color": "#140e22"
+}
