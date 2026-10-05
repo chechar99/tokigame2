@@ -7,13 +7,13 @@ const MAX_HEARTS = 5;
 
 const LEVELS = [
   {
-    theme: 'sierras', name: 'SIERRAS DE CÓRDOBA', music: 'sierras',
-    tip: '¡Cuidado con los arroyos\ny las nubes de lluvia!',
+    theme: 'sierras', name: 'SIERRAS DE CÓRDOBA', music: 'sierras', boss: 'pelado',
+    tip: '¡Cuidado con arroyos y lluvia!\nAl final te espera el Pelado.',
     length: 5600, speed: 92, speedMax: 114,
   },
   {
-    theme: 'docta', name: 'BARRIO DOCTA', music: 'docta',
-    tip: '¡Ojo con los charcos, los\naspersores y las fuentes!',
+    theme: 'docta', name: 'BARRIO DOCTA', music: 'docta', boss: 'gato',
+    tip: '¡Ojo con el agua del barrio!\nAl final: un gato gigante.',
     length: 6400, speed: 100, speedMax: 126,
   },
 ];
@@ -56,7 +56,7 @@ function startLevel(i) {
     def, theme: def.theme, loop: Math.floor(i / LEVELS.length), length: def.length,
     objects: [], plats: [], gaps: [], nextGen: 320, nextDeco: -40,
     finishPlaced: false, finished: false, damage: false, animals: 0, sogas: 0, bonus: 0,
-    lastPower: 0, lastPat: null,
+    lastPower: 0, lastPat: null, bossAt: 0, boss: null, shots: [],
   };
   Object.assign(toki, {
     x: 0, y: GROUND, vy: 0, onGround: true, jumps: 0, coyote: 0, buffer: 0, anim: 0,
@@ -252,8 +252,10 @@ function generate() {
 
 function placeFinish() {
   L.finishPlaced = true;
-  addSogaLine(L.length - 130, 6, GROUND - 8, 12);
-  addObj({ type: 'finish', kind: L.theme, x: L.length, w: 130 });
+  const pad = 300;
+  L.bossAt = L.nextGen + pad;
+  L.length = L.bossAt;
+  addSogaLine(L.nextGen + 24, 8, GROUND - 8, 16);
 }
 
 function spawnDeco(x) {
@@ -416,7 +418,7 @@ function updateToki(dt, control) {
 
   // animación y polvo
   T.anim += dt * Game.speed / 9;
-  if (T.onGround) {
+  if (T.onGround && Game.speed > 1) {
     T.dustT -= dt;
     if (T.dustT <= 0) {
       T.dustT = 0.12;
@@ -433,11 +435,12 @@ function bark() {
   floatText(T.x + 18, T.y - 30, choice(['¡GUAU!', '¡GUAU!', '¡WOF!']), '#ffffff', 0.55);
 }
 
-function damage(fromGap) {
+function damage(fromGap, kind) {
   const T = toki;
-  if (L.finished) return;
+  if (L.finished || (L.boss && L.boss.phase === 'enter')) return;
   if (T.invuln > 0 && !fromGap) return;
-  if (T.umbrella > 0) {
+  const physical = kind === 'sock' || kind === 'hair' || kind === 'claw';
+  if (T.umbrella > 0 && !physical) {
     Sound.sfx('umbrella');
     if (!fromGap) floatText(T.x, T.y - 32, '¡PARAGUAS!', '#f8d040', 0.6);
     T.invuln = Math.max(T.invuln, 0.5);
@@ -446,11 +449,23 @@ function damage(fromGap) {
   if (T.invuln > 0) return;
   Game.hearts--;
   L.damage = true;
-  T.invuln = 1.7; T.wetT = 1.4;
+  T.invuln = physical ? 1.35 : 1.7;
+  T.wetT = physical ? 0 : 1.4;
   Game.shake = 0.35;
-  Sound.sfx('splash'); Sound.sfx('hurt');
-  splash(T.x, T.y - 8, 16);
-  floatText(T.x, T.y - 30, choice(['¡PUAJ!', '¡AGUA NO!', '¡BRRR!', '¡QUÉ ASCO!', '¡NOOO!']), '#8cc8f4', 1);
+  if (physical) {
+    Sound.sfx('hurt');
+    for (let i = 0; i < 8; i++) spawn(T.x, T.y - 10, rand(-70, 40), rand(-80, -20), 0.4, kind === 'sock' ? '#f7f2e8' : '#e8d0c0', { kind: 'dust', size: 2 });
+    const msg = {
+      sock: ['¡UNA MEDIA!', '¡QUÉ ASCO!', '¡MEDIA SUCIA!'],
+      hair: ['¡BOLA DE PELO!', '¡PUAJ!'],
+      claw: ['¡ZARPAZO!', '¡RASGUÑO!'],
+    }[kind];
+    floatText(T.x, T.y - 30, choice(msg), '#ffb0a0', 1);
+  } else {
+    Sound.sfx('splash'); Sound.sfx('hurt');
+    splash(T.x, T.y - 8, 16);
+    floatText(T.x, T.y - 30, choice(['¡PUAJ!', '¡AGUA NO!', '¡BRRR!', '¡QUÉ ASCO!', '¡NOOO!']), '#8cc8f4', 1);
+  }
   if (Game.hearts <= 0) gameOver();
 }
 
@@ -475,6 +490,12 @@ function scareAnimal(o, how) {
 }
 
 function startFlee(o) {
+  if (L.boss && (L.boss.phase === 'fight' || L.boss.phase === 'hurt')) {
+    o.charge = true;
+    o.vx = 120;
+    o.vy = o.flying ? 0 : -130;
+    return;
+  }
   if (o.kind === 'cat') { o.vx = Game.speed + 110; o.vy = -170; o.groundY = GROUND; }
   else if (o.kind === 'liebre') { o.vx = Game.speed + 130; o.vy = -160; o.groundY = GROUND; }
   else { o.vx = Game.speed * 0.5 + rand(20, 50); o.vy = -50; }
@@ -562,6 +583,7 @@ const UPD = {
   },
   animal(o, dt) {
     o.t += dt;
+    if (o.charge) { updateCharge(o, dt); return; }
     if (o.state === 'idle') {
       if (o.flying) { o.x += o.vx * dt; o.y = o.baseY + Math.sin(o.t * 3) * 3; }
       if (hitToki(o.x - 8, o.y - 12, o.x + 8, o.y)) scareAnimal(o, 'chase');
@@ -585,20 +607,23 @@ const UPD = {
 
 // ================= Mundo =================
 function updateWorld(dt, control) {
-  const prog = clamp(toki.x / L.length, 0, 1);
-  Game.speed = (L.def.speed + (L.def.speedMax - L.def.speed) * prog) * (1 + 0.12 * L.loop);
+  if (L.boss) Game.speed = 0;
+  else {
+    const prog = clamp(toki.x / L.length, 0, 1);
+    Game.speed = (L.def.speed + (L.def.speedMax - L.def.speed) * prog) * (1 + 0.12 * L.loop);
+  }
   if (Game.comboT > 0) { Game.comboT -= dt; if (Game.comboT <= 0) Game.combo = 0; }
   updateToki(dt, control);
+  if (!L.finished && !L.boss && L.bossAt && toki.x >= L.bossAt) startBoss();
   camX = toki.x - TOKI_SX;
-  generate();
+  if (!L.boss) generate();
   for (const o of L.objects) { const f = UPD[o.type]; if (f) f(o, dt); }
   L.objects = L.objects.filter((o) => !o.dead && o.x + (o.w || 30) > camX - 100);
   L.plats = L.plats.filter((p) => p.x + p.w > camX - 100);
   L.gaps = L.gaps.filter((g) => g.x1 > camX - 100);
+  if (L.boss) updateBoss(dt);
   updateParticles(dt);
   Game.shake = Math.max(0, Game.shake - dt);
-
-  if (!L.finished && toki.x >= L.length + 16) levelComplete();
 }
 
 function levelComplete() {
@@ -616,6 +641,411 @@ function gameOver() {
   Sound.stop();
   Sound.sfx('gameover');
   setState('gameover');
+}
+
+// ================= Jefes =================
+function createBoss(kind) {
+  const extra = L.loop * 2;
+  const base = {
+    phase: 'enter', t: 0, state: 'idle', stateT: 0, x: 0, y: GROUND, vx: 0,
+    atk: 0.8, flash: 0, vuln: 0, barked: false, allyT: 0.3, pending: 0,
+  };
+  if (kind === 'gato') {
+    return {
+      ...base, kind, name: 'GATO GIGANTE',
+      hp: 6 + extra, maxHp: 6 + extra,
+      step: 0, attack: null, didHit: false,
+      pattern: ['pounce', 'spit', 'swipe', 'pounce', 'spit'],
+      w: ART.giantCat.idle.width, h: ART.giantCat.idle.height,
+      hint: '¡SALTA SUS ATAQUES!\nLADRA CUANDO CAE A TU LADO',
+    };
+  }
+  return {
+    ...base, kind: 'pelado', name: 'EL PELADO',
+    hp: 5 + extra, maxHp: 5 + extra, throws: 0,
+    w: ART.pelado.idle.width, h: ART.pelado.idle.height,
+    hint: '¡ESQUIVA O LADRA LAS MEDIAS!\nLOS PAJAROS Y GATOS LO ATACAN',
+  };
+}
+
+function clearArena() {
+  const x0 = camX - 50, x1 = camX + W + 80;
+  const bad = new Set(['puddle', 'gap', 'tub', 'sprinkler', 'fountain', 'cloud', 'plat', 'power']);
+  L.objects = L.objects.filter((o) => {
+    if (!bad.has(o.type)) return true;
+    return o.x > x1 || o.x + (o.w || 30) < x0;
+  });
+  L.plats = L.plats.filter((p) => p.x > x1 || p.x + p.w < x0);
+  L.gaps = L.gaps.filter((g) => g.x1 < x0 || g.x0 > x1);
+}
+
+function startBoss() {
+  L.boss = createBoss(L.def.boss || 'pelado');
+  L.shots = [];
+  Game.speed = 0;
+  clearArena();
+  L.boss.x = camX + W + 20;
+  Sound.sfx(L.boss.kind === 'gato' ? 'roar' : 'sting');
+  floatText(toki.x + 28, toki.y - 36, '¡JEFE!', '#ff8090', 1.2);
+}
+
+function bossHome(b) { return camX + W - b.w - 6; }
+
+function livingAllies() {
+  let n = 0;
+  for (const o of L.objects) {
+    if (o.type === 'animal' && !o.dead && (o.state === 'idle' || o.state === 'alert' || o.charge)) n++;
+  }
+  return n;
+}
+
+function spawnAlly(flying) {
+  const b = L.boss;
+  const kind = flying
+    ? (L.theme === 'sierras' ? choice(['hornero', 'cotorra']) : choice(['paloma', 'cotorra']))
+    : 'cat';
+  const gap = Math.max(48, (b.homeX || toki.x + 140) - toki.x - 40);
+  const x = toki.x + rand(32, Math.min(100, gap));
+  const y = flying ? GROUND - rand(18, 46) : GROUND;
+  addAnimal(x, y, kind, { flying });
+  const o = L.objects[L.objects.length - 1];
+  o.vx = 0;
+  o.bossAlly = true;
+}
+
+function maybeSpawnAlly(b, dt) {
+  b.allyT -= dt;
+  if (b.allyT > 0) return;
+  b.allyT = b.kind === 'pelado' ? rand(1.65, 2.35) : rand(2.05, 2.9);
+  if (livingAllies() >= 3) return;
+  spawnAlly(b.kind === 'gato' ? Math.random() < 0.62 : Math.random() < 0.5);
+}
+
+function hitBoss() {
+  const b = L.boss;
+  if (!b || b.phase !== 'fight') return false;
+  b.hp--;
+  b.flash = 0.22;
+  Game.score += 200;
+  Game.shake = 0.22;
+  Sound.sfx('bossHit');
+  floatText(b.x + 12, GROUND - b.h, '-1', '#ff8090', 0.65);
+  if (b.kind === 'pelado') { b.state = 'hurt'; b.stateT = 0.3; b.pending = 0; }
+  if (b.hp <= 0) defeatBoss();
+  return true;
+}
+
+function defeatBoss() {
+  const b = L.boss;
+  b.phase = 'dead';
+  b.t = 0;
+  b.state = 'hurt';
+  b.hp = 0;
+  L.shots = [];
+  Game.score += 1000;
+  Game.shake = 0.45;
+  floatText(toki.x + 18, toki.y - 34, '¡LO VENCISTE!', '#ffe070', 1.4);
+  sparkle(b.x + 12, GROUND - 24, 14, '#ffe070');
+}
+
+function animalHitsBoss(o) {
+  const b = L.boss;
+  if (!b || b.phase !== 'fight') return false;
+  if (o.x < b.x + 2 || o.x > b.x + Math.min(36, b.w * 0.72)) return false;
+  return o.y >= GROUND - 46;
+}
+
+function updateCharge(o, dt) {
+  if (o.flying) {
+    o.x += 108 * dt;
+    o.y += ((GROUND - 20) - o.y) * Math.min(1, dt * 5);
+  } else {
+    o.vy = Math.min(420, (o.vy || 0) + GRAV * dt);
+    o.x += 128 * dt;
+    o.y += o.vy * dt;
+    if (o.y >= GROUND) { o.y = GROUND; o.vy = -70; }
+  }
+  if (animalHitsBoss(o)) {
+    o.dead = true;
+    if (hitBoss()) floatText(o.x, o.y - 18, o.kind === 'cat' ? '¡MIAU!' : '¡PIO!', '#fff4d8', 0.55);
+    sparkle(o.x, o.y - 8, 7, o.kind === 'cat' ? '#e89040' : '#ffe070');
+    return;
+  }
+  if (!L.boss || o.x > camX + W + 36 || o.y < -24) o.dead = true;
+}
+
+function addShot(s) { s.t = 0; s.dead = false; L.shots.push(s); }
+
+function throwSock(b, style) {
+  const x = b.x + 6;
+  const dist = Math.max(80, x - toki.x);
+  const speed = clamp(dist / 0.9, 125, 230);
+  const spec = {
+    low: { y: GROUND - 8, vy: 0, g: 0 },
+    mid: { y: GROUND - 18, vy: -8, g: 30 },
+    high: { y: GROUND - 38, vy: 0, g: 0 },
+  }[style];
+  addShot({ kind: 'sock', x, y: spec.y, vx: -speed, vy: spec.vy, g: spec.g });
+  Sound.sfx('whoosh');
+}
+
+function spitHair(b, y) {
+  const x = b.x + 10;
+  const dist = Math.max(80, x - toki.x);
+  const speed = clamp(dist / 0.95, 115, 210);
+  const t = dist / speed;
+  addShot({ kind: 'hair', x, y: GROUND - 24, vx: -speed, vy: (y - (GROUND - 24)) / t, g: 36 });
+}
+
+function launchClaw(b) {
+  const dist = Math.max(70, b.x - toki.x);
+  addShot({ kind: 'claw', x: b.x + 2, y: GROUND - 6, vx: -clamp(dist / 0.85, 130, 230), vy: 0, g: 0 });
+  Sound.sfx('whoosh');
+}
+
+function updateShots(dt) {
+  const barking = toki.barkT > 0.1;
+  for (const s of L.shots) {
+    s.t += dt;
+    s.vy += s.g * dt;
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    if (s.kind !== 'claw' && s.y > GROUND - 2) {
+      s.dead = true;
+      spawn(s.x, GROUND - 1, rand(-16, 16), rand(-24, -6), 0.22, '#d8c8a8', { kind: 'dust', size: 2 });
+      continue;
+    }
+    if (barking) {
+      const dx = s.x - toki.x;
+      const reach = s.kind === 'claw' ? 72 : 100;
+      const vert = s.kind === 'claw' ? 26 : 44;
+      if (dx > -14 && dx < reach && Math.abs(s.y - (toki.y - 8)) < vert) {
+        s.dead = true;
+        Sound.sfx('poof');
+        sparkle(s.x, s.y, 5, '#ffffff');
+        floatText(s.x, s.y - 12, '¡FUERA!', '#ffffff', 0.4);
+        continue;
+      }
+    }
+    const pad = s.kind === 'claw' ? 7 : 5;
+    if (hitToki(s.x - pad, s.y - pad, s.x + pad, s.y + 3)) {
+      s.dead = true;
+      damage(false, s.kind === 'sock' ? 'sock' : s.kind === 'hair' ? 'hair' : 'claw');
+    }
+  }
+  L.shots = L.shots.filter((s) => !s.dead && s.x > camX - 30 && s.y > -40 && s.y < GROUND + 8);
+}
+
+function updatePelado(b, dt) {
+  if (b.state === 'hurt') {
+    b.stateT -= dt;
+    if (b.stateT <= 0) { b.state = 'idle'; b.atk = 0.5; }
+    return;
+  }
+  if (b.state === 'windup') {
+    b.stateT -= dt;
+    if (b.stateT <= 0) {
+      throwSock(b, ['low', 'mid', 'high', 'mid'][b.throws % 4]);
+      b.throws++;
+      b.state = 'throw';
+      b.stateT = 0.16;
+      if (b.throws % 4 === 0) b.pending = 0.22;
+    }
+    return;
+  }
+  if (b.state === 'throw') {
+    if (b.pending) {
+      b.pending -= dt;
+      if (b.pending <= 0) { throwSock(b, 'low'); b.pending = 0; }
+    }
+    b.stateT -= dt;
+    if (b.stateT <= 0 && !b.pending) { b.state = 'idle'; b.atk = rand(1.15, 1.7); }
+    return;
+  }
+  b.x += (b.homeX - b.x) * Math.min(1, dt * 3);
+  b.atk -= dt;
+  if (b.atk <= 0) { b.state = 'windup'; b.stateT = 0.45; }
+}
+
+function tryBarkBoss(b) {
+  if (b.vuln <= 0 || b.barked || toki.barkT <= 0) return;
+  const dx = b.x - toki.x;
+  if (dx > -12 && dx < 78) {
+    b.barked = true;
+    hitBoss();
+    floatText(b.x + 6, GROUND - 48, '¡AUUU!', '#ffe070', 0.75);
+  }
+}
+
+function beginCatAttack(b) {
+  b.attack = b.pattern[b.step % b.pattern.length];
+  b.step++;
+  b.state = 'windup';
+  b.stateT = b.attack === 'pounce' ? 0.75 : 0.42;
+  b.didHit = false;
+  if (b.attack === 'pounce') Sound.sfx('roar');
+}
+
+function releaseCatAttack(b) {
+  if (b.attack === 'pounce') {
+    b.state = 'dash';
+    const dist = Math.max(48, b.x - (toki.x + 8));
+    b.vx = -dist / 0.5;
+    Sound.sfx('whoosh');
+  } else if (b.attack === 'spit') {
+    b.state = 'idle';
+    b.stateT = 0.85;
+    spitHair(b, GROUND - 16);
+    if (b.hp <= Math.ceil(b.maxHp / 2)) spitHair(b, GROUND - 36);
+    Sound.sfx('cat');
+  } else {
+    b.state = 'idle';
+    b.stateT = 0.7;
+    launchClaw(b);
+  }
+}
+
+function updateGato(b, dt) {
+  tryBarkBoss(b);
+  if (b.phase === 'dead') return;
+  if (b.state === 'windup') {
+    b.x += (b.homeX + 10 - b.x) * Math.min(1, dt * 4);
+    b.stateT -= dt;
+    if (b.stateT <= 0) releaseCatAttack(b);
+    return;
+  }
+  if (b.state === 'dash') {
+    b.x += b.vx * dt;
+    if (!b.didHit && toki.y > GROUND - 18 && b.x < toki.x + 12 && b.x + 26 > toki.x - 8) {
+      b.didHit = true;
+      damage(false, 'claw');
+    }
+    if (b.x <= toki.x + 8) {
+      b.x = toki.x + 8;
+      b.state = 'stun';
+      b.stateT = 1.25;
+      b.vuln = 1.25;
+      b.barked = false;
+      b.vx = 0;
+      Sound.sfx('land');
+      for (let i = 0; i < 6; i++) spawn(b.x + 8, GROUND - 2, rand(-36, 36), rand(-28, -6), 0.3, '#d8c8a8', { kind: 'dust', size: 3 });
+    }
+    return;
+  }
+  if (b.state === 'stun') {
+    b.stateT -= dt;
+    if (b.stateT <= 0) b.state = 'return';
+    return;
+  }
+  b.x += (b.homeX - b.x) * Math.min(1, dt * (b.state === 'return' ? 2.4 : 3));
+  if (b.state === 'return' && b.x >= b.homeX - 2) {
+    b.x = b.homeX;
+    b.state = 'idle';
+    b.stateT = 0.5;
+    return;
+  }
+  if (b.state === 'idle') {
+    b.stateT -= dt;
+    if (b.stateT <= 0) beginCatAttack(b);
+  }
+}
+
+function updateBoss(dt) {
+  const b = L.boss;
+  if (!b) return;
+  b.t += dt;
+  b.flash = Math.max(0, b.flash - dt);
+  b.vuln = Math.max(0, b.vuln - dt);
+  if (b.vuln <= 0) b.barked = false;
+  b.homeX = bossHome(b);
+  if (b.phase === 'dead') {
+    b.x += 76 * dt;
+    if (!L.finished && b.t > 1.35) levelComplete();
+    return;
+  }
+  if (b.phase === 'enter') {
+    b.x += (b.homeX - b.x) * Math.min(1, dt * 3.2);
+    if (b.t > 1.45) {
+      b.phase = 'fight';
+      b.t = 0;
+      b.state = 'idle';
+      b.atk = 0.65;
+      b.stateT = b.kind === 'gato' ? 0.85 : 0;
+      spawnAlly(Math.random() < 0.5);
+    }
+    return;
+  }
+  if (b.kind === 'pelado') updatePelado(b, dt);
+  else updateGato(b, dt);
+  if (b.phase === 'dead') return;
+  maybeSpawnAlly(b, dt);
+  updateShots(dt);
+}
+
+function bossFrame(b) {
+  if (b.kind === 'pelado') {
+    const P = ART.pelado;
+    if (b.phase === 'dead' || b.state === 'hurt') return P.hurt;
+    if (b.state === 'windup') return P.windup;
+    if (b.state === 'throw') return P.throw;
+    return P.idle;
+  }
+  const G = ART.giantCat;
+  if (b.state === 'windup' && b.attack === 'pounce') return G.crouch;
+  if (b.state === 'windup' && b.attack === 'spit') return G.spit;
+  if (b.state === 'dash') return G.dash;
+  if (b.state === 'stun' || b.phase === 'dead') return G.stun;
+  return G.idle;
+}
+
+function drawShots(cx) {
+  for (const s of L.shots) {
+    const x = Math.round(s.x - cx), y = Math.round(s.y);
+    if (s.kind === 'sock') {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(Math.atan2(s.vy, s.vx));
+      ctx.drawImage(ART.sock, -5, -6);
+      ctx.restore();
+    } else if (s.kind === 'hair') {
+      ctx.drawImage(ART.hairball, x - 4, y - 4);
+    } else {
+      ctx.fillStyle = '#fff6ee';
+      ctx.fillRect(x, y - 7, 8, 2);
+      ctx.fillRect(x + 3, y - 3, 8, 2);
+      ctx.fillRect(x + 1, y + 1, 8, 2);
+    }
+  }
+}
+
+function drawBoss(cx) {
+  const b = L.boss;
+  if (!b) return;
+  if (b.flash > 0 && Math.floor(Game.t * 32) % 2 === 0) return;
+  let img = bossFrame(b);
+  if (b.phase === 'dead') img = flipH0(img);
+  const x = Math.round(b.x - cx);
+  const y = GROUND + 1 - img.height;
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(x + 8, GROUND - 1, Math.max(10, img.width - 16), 2);
+  ctx.drawImage(img, x, y);
+  if (b.kind === 'pelado' && b.state === 'windup') ctx.drawImage(ART.sock, x - 2, y + 1);
+  if (b.phase === 'fight' && b.state === 'stun') {
+    drawText('¡GUAU!', x + (img.width >> 1), y - 18, '#ffe070', { align: 'center', outline: '#1a1020' });
+  } else if (b.phase === 'fight' && b.state === 'windup') {
+    drawText('!', x + (img.width >> 1), y - 20, '#ff4050', { align: 'center', outline: '#1a1020' });
+  }
+  if (b.phase !== 'dead') {
+    const bw = 28;
+    const bx = x + Math.round(img.width / 2 - bw / 2);
+    const by = y - 6;
+    ctx.fillStyle = '#1a1020';
+    ctx.fillRect(bx - 1, by - 1, bw + 2, 4);
+    ctx.fillStyle = '#3a2030';
+    ctx.fillRect(bx, by, bw, 2);
+    ctx.fillStyle = b.kind === 'gato' ? '#c060f0' : '#ff4060';
+    ctx.fillRect(bx, by, Math.max(0, Math.round(bw * b.hp / b.maxHp)), 2);
+  }
 }
 
 // ================= Dibujo =================
@@ -754,6 +1184,7 @@ function tokiFrame() {
     if (T.vy < 0) return bark ? S.jumpBark : wet ? S.wetJump : S.jump;
     return bark ? S.fallBark : wet ? S.wetFall : S.fall;
   }
+  if (Game.speed < 1) return bark ? S.idleBark : S.idle[Math.floor(Game.t * 4) % 2];
   const f = Math.floor(T.anim) % 4;
   return bark ? S.runBark[f] : wet ? S.wetRun[f] : S.run[f];
 }
@@ -790,7 +1221,11 @@ function drawWorld() {
   for (const o of obj) if (o.type === 'plat' || o.type === 'tub' || o.type === 'sprinkler' || o.type === 'fountain') DRAW[o.type](o, cx);
   for (const o of obj) if (o.type === 'soga' || o.type === 'power') DRAW[o.type](o, cx);
   for (const o of obj) if (o.type === 'animal') DRAW.animal(o, cx);
+  const dashing = L.boss && L.boss.kind === 'gato' && L.boss.state === 'dash';
+  if (L.boss && !dashing) drawBoss(cx);
+  if (L.shots && L.shots.length) drawShots(cx);
   drawToki(cx);
+  if (dashing) drawBoss(cx);
   for (const o of obj) {
     if (o.type === 'cloud') ctx.drawImage(o.phase === 'rain' || o.phase === 'warn' ? ART.cloudRain : ART.cloud, Math.round(o.x - cx), o.y);
   }
@@ -833,17 +1268,26 @@ function drawHUD() {
   drawText('X' + Game.sogas, 16, 15, '#fff4d8', { outline: '#1a1020' });
 
   drawText(String(Game.score).padStart(6, '0'), W / 2, 4, '#ffe070', { align: 'center', outline: '#1a1020' });
-  const prog = clamp(toki.x / L.length, 0, 1);
+  const bossFight = L.boss && L.boss.phase !== 'dead';
+  const prog = bossFight ? L.boss.hp / L.boss.maxHp : clamp(toki.x / L.length, 0, 1);
   const bw = 70, bx = Math.round(W / 2 - bw / 2), by = 14;
   ctx.fillStyle = '#1a1020'; ctx.fillRect(bx - 1, by - 1, bw + 2, 5);
   ctx.fillStyle = '#4a3a5a'; ctx.fillRect(bx, by, bw, 3);
-  ctx.fillStyle = '#f0a040'; ctx.fillRect(bx, by, Math.round(bw * prog), 3);
-  const px = bx + Math.round(bw * prog);
-  ctx.fillStyle = '#1a1020'; ctx.fillRect(px - 3, by - 3, 6, 9);
-  ctx.fillStyle = TK.B; ctx.fillRect(px - 2, by - 2, 4, 7);
-  ctx.fillStyle = TK.W; ctx.fillRect(px - 1, by - 2, 1, 3);
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(bx + bw + 3, by - 4, 1, 8);
-  ctx.fillStyle = '#ff5060'; ctx.fillRect(bx + bw + 4, by - 4, 4, 3);
+  ctx.fillStyle = bossFight ? '#ff4060' : '#f0a040';
+  ctx.fillRect(bx, by, Math.round(bw * Math.max(0, prog)), 3);
+  if (!bossFight) {
+    const px = bx + Math.round(bw * prog);
+    ctx.fillStyle = '#1a1020'; ctx.fillRect(px - 3, by - 3, 6, 9);
+    ctx.fillStyle = TK.B; ctx.fillRect(px - 2, by - 2, 4, 7);
+    ctx.fillStyle = TK.W; ctx.fillRect(px - 1, by - 2, 1, 3);
+    ctx.fillStyle = '#ffffff'; ctx.fillRect(bx + bw + 3, by - 4, 1, 8);
+    ctx.fillStyle = '#ff5060'; ctx.fillRect(bx + bw + 4, by - 4, 4, 3);
+  } else if (L.boss.phase === 'enter') {
+    drawText('¡JEFE!', W / 2, 48, '#ffd84a', { align: 'center', scale: 2, outline: '#3a1608' });
+    drawText(L.boss.name, W / 2, 68, '#ffffff', { align: 'center', outline: '#1a1020' });
+  } else if (L.boss.t < 4.4 && Math.floor(Game.t * 2) % 2 === 0) {
+    drawText(L.boss.hint, W / 2, 36, '#fff4d8', { align: 'center', outline: '#1a1020' });
+  }
 
   if (toki.umbrella > 0) {
     ctx.drawImage(ART.umbrella, 3, 24);

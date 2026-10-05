@@ -88,6 +88,9 @@ const Sound = (() => {
     gameover() { seq(['G4', '', 'E4', '', 'C4', '', 'B3', 'C4'], 0.18, 'triangle', 0.25, 1.2); },
     whoosh() { noise(0.3, 0.15, 400, 3000, 0, 'bandpass'); },
     blip() { tone(740, 0.025, 'square', 0.035); },
+    roar() { tone(130, 0.38, 'sawtooth', 0.18, 52); tone(86, 0.42, 'square', 0.1, 40); noise(0.32, 0.16, 480, 70); },
+    bossHit() { noise(0.1, 0.26, 900, 160); tone(210, 0.12, 'square', 0.15, 70); },
+    poof() { noise(0.08, 0.14, 2200, 400, 0, 'bandpass'); tone(480, 0.05, 'square', 0.05, 180); },
   };
 
   function sfx(name) {

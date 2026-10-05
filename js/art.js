@@ -661,6 +661,150 @@ function buildDoctaBG() {
   return bg;
 }
 
+function buildSock() {
+  return sprite(9, 11, (P) => {
+    P.r(3, 1, 3, 6, '#f7f2e8');
+    P.r(2, 6, 5, 3, '#f7f2e8');
+    P.r(3, 2, 3, 1, '#e84858');
+    P.r(3, 4, 3, 1, '#3a6ec8');
+    P.r(2, 8, 5, 1, '#e4d8c8');
+  }, '#3a2820', 1, 1);
+}
+
+function buildHairball() {
+  return sprite(9, 9, (P) => {
+    P.e(4, 4, 3, 3, '#8a6848');
+    P.e(4, 4, 2, 2, '#c4a078');
+    P.p(2, 3, '#6a4830');
+    P.p(5, 2, '#6a4830');
+    P.p(6, 5, '#6a4830');
+    P.p(3, 6, '#f0e0c8');
+  }, '#2a1a10', 1, 1);
+}
+
+function buildPelado() {
+  const skin = '#f0c0a0', skinD = '#c89070', shine = '#ffe6d4';
+  const shirt = '#e23a48', shirtD = '#b02838', shirtL = '#ff7078';
+  const pants = '#2a3144', shoe = '#1c1c24', brow = '#6a4030', N = '#1a1218';
+  const pose = (name) => sprite(32, 44, (Q) => {
+    Q.r(9, 37, 5, 3, shoe);
+    Q.r(17, 37, 5, 3, shoe);
+    Q.r(10, 29, 4, 8, pants);
+    Q.r(17, 29, 4, 8, pants);
+    Q.r(8, 18, 15, 12, shirt);
+    Q.r(8, 18, 15, 2, shirtL);
+    Q.r(8, 28, 15, 2, shirtD);
+    Q.r(14, 20, 2, 8, '#f4f0e8');
+    Q.r(12, 15, 7, 4, skin);
+    Q.e(15, 10, 7, 6, skin);
+    Q.e(15, 6, 4, 2, shine);
+    Q.r(8, 9, 2, 4, skinD);
+    Q.r(21, 9, 2, 4, skinD);
+    if (name === 'hurt') {
+      Q.r(10, 10, 4, 1, N);
+      Q.r(17, 10, 4, 1, N);
+      Q.r(12, 13, 6, 2, '#a04848');
+    } else {
+      Q.r(10, 9, 3, 2, N);
+      Q.r(18, 9, 3, 2, N);
+      Q.p(11, 9, '#ffffff');
+      Q.p(19, 9, '#ffffff');
+      Q.r(13, 13, 4, 1, '#a04848');
+    }
+    Q.r(9, 7, 5, 1, brow);
+    Q.r(17, 7, 5, 1, brow);
+    Q.p(9, 8, brow);
+    Q.p(21, 8, brow);
+    Q.p(12, 14, skinD);
+    Q.p(17, 14, skinD);
+    if (name === 'windup') {
+      Q.r(4, 7, 3, 9, skin);
+      Q.r(2, 3, 5, 5, skin);
+    } else if (name === 'throw') {
+      Q.r(2, 17, 8, 3, skin);
+      Q.r(1, 18, 2, 2, skinD);
+    } else if (name === 'hurt') {
+      Q.r(22, 21, 6, 3, skin);
+      Q.r(5, 22, 4, 3, skin);
+    } else {
+      Q.r(4, 20, 4, 3, skin);
+      Q.r(22, 20, 4, 3, skin);
+    }
+  }, '#1a1016', 1, 1);
+  return { idle: pose('idle'), windup: pose('windup'), throw: pose('throw'), hurt: pose('hurt') };
+}
+
+function buildGiantCat() {
+  const C = '#3a3148', D = '#241c30', L = '#5a5068';
+  const E = '#ff3858', W = '#f6f2ec', F = '#fff8f2', N = '#140c10', Pnk = '#e87898';
+  const pose = (name) => sprite(54, 42, (Q) => {
+    const crouch = name === 'crouch' || name === 'dash';
+    const yb = crouch ? 7 : 0;
+    if (name === 'dash') {
+      Q.r(40, 18 + yb, 10, 4, C);
+      Q.r(48, 16 + yb, 3, 3, D);
+    } else if (name === 'stun') {
+      Q.r(40, 8, 4, 12, C);
+      Q.p(42, 6, D);
+    } else {
+      Q.r(38, 6, 4, 12, C);
+      Q.r(40, 3, 3, 5, D);
+    }
+    Q.r(30, 26 + (crouch ? 2 : 0), 8, crouch ? 6 : 10, C);
+    Q.r(31, 34, 7, 3, D);
+    Q.e(30, 20 + yb, 14, 8, C);
+    Q.r(14, 15 + yb, 26, 11, C);
+    Q.e(28, 24 + yb, 8, 4, L);
+    Q.r(22, 17 + yb, 4, 2, D);
+    Q.r(32, 16 + yb, 5, 2, D);
+    if (name === 'dash') {
+      Q.r(6, 24 + yb, 14, 4, C);
+      Q.r(4, 26 + yb, 5, 3, D);
+    } else {
+      Q.r(14, 26 + (crouch ? 2 : 0), 6, crouch ? 6 : 10, C);
+      Q.r(14, 34, 7, 3, D);
+    }
+    const hx = name === 'dash' ? 1 : 5;
+    const hy = 12 + yb;
+    Q.e(hx + 9, hy + 2, 8, 7, C);
+    Q.r(hx + 3, hy - 7, 3, 6, C);
+    Q.p(hx + 3, hy - 8, C);
+    Q.r(hx + 11, hy - 7, 3, 6, C);
+    Q.p(hx + 13, hy - 8, C);
+    Q.r(hx + 4, hy - 5, 1, 3, Pnk);
+    Q.r(hx + 12, hy - 5, 1, 3, Pnk);
+    Q.e(hx + 7, hy + 5, 4, 3, L);
+    if (name === 'stun') {
+      Q.r(hx + 4, hy + 2, 4, 1, N);
+      Q.r(hx + 11, hy + 2, 4, 1, N);
+      Q.r(hx + 6, hy + 6, 3, 2, Pnk);
+    } else {
+      Q.r(hx + 4, hy, 4, 3, E);
+      Q.r(hx + 11, hy, 4, 3, E);
+      Q.p(hx + 5, hy + 1, N);
+      Q.p(hx + 12, hy + 1, N);
+      Q.p(hx + 6, hy, W);
+      Q.p(hx + 13, hy, W);
+      Q.r(hx + 3, hy - 2, 5, 1, N);
+      Q.r(hx + 10, hy - 2, 5, 1, N);
+      Q.p(hx + 3, hy - 1, N);
+      Q.p(hx + 14, hy - 1, N);
+      Q.r(hx + 5, hy + 7, 2, 2, F);
+      Q.r(hx + 9, hy + 7, 2, 2, F);
+    }
+    Q.p(hx + 7, hy + 5, Pnk);
+    Q.p(hx + 8, hy + 5, Pnk);
+    Q.r(hx + 5, hy + 6, 5, 1, N);
+    Q.r(hx, hy + 4, 4, 1, W);
+    Q.r(hx + 14, hy + 4, 4, 1, W);
+    if (name === 'spit') Q.e(hx + 2, hy + 7, 3, 2, '#6a4830');
+  }, '#14080e', 1, 1);
+  return {
+    idle: pose('idle'), crouch: pose('crouch'), dash: pose('dash'),
+    stun: pose('stun'), spit: pose('spit'),
+  };
+}
+
 function buildArt() {
   ART.toki = buildTokiSet();
   ART.portrait = buildPortrait();
@@ -675,6 +819,10 @@ function buildArt() {
     cotorra: buildBird({ body: '#5cb848', belly: '#b8d4a8', head: '#a8c4b0', tail: '#3c9038', beak: '#e8c090', wing: '#3a8a3a' }),
   };
   ART.hare = buildHare();
+  ART.sock = buildSock();
+  ART.hairball = buildHairball();
+  ART.pelado = buildPelado();
+  ART.giantCat = buildGiantCat();
   buildItems();
   buildDeco();
   ART.bg = { sierras: buildSierrasBG(), docta: buildDoctaBG() };
