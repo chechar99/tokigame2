@@ -134,6 +134,22 @@ const Sound = (() => {
         { drum: true, notes: S('k - h - s - h h k - h k s - h -') },
       ],
     },
+    parque: {
+      step: 0.18,
+      tracks: [
+        { wave: 'square', vol: 0.07, gate: 0.85, notes: S('A4 - C5 E5 - C5 A4 - G4 E4 - A4 - C5 D5 E5 - D5 C5 B4 A4 - G4 A4 - - E4 - G4 A4 C5 - A4 G4 E4 - D4 E4 G4 - E4 D4 C4 - A4 - - -') },
+        { wave: 'triangle', vol: 0.2, gate: 0.92, notes: bassLine(['A2', 'E2', 'F2', 'E2', 'A2', 'D2', 'E2', 'A2'], ['r', '', 'o', '', 'f', '']) },
+        { drum: true, notes: S('k - - h s - h - k - h - s - - h') },
+      ],
+    },
+    atardecer: {
+      step: 0.155,
+      tracks: [
+        { wave: 'square', vol: 0.08, gate: 0.75, notes: S('G4 B4 D5 - B4 G4 A4 B4 D5 - C5 B4 A4 G4 - E4 - G4 A4 B4 - D5 C5 B4 A4 G4 - - - C5 - B4 A4 G4 E4 D4 E4 G4 - E4 D4 C4 - D4 E4 G4 - - -') },
+        { wave: 'triangle', vol: 0.24, gate: 0.85, notes: bassLine(['G2', 'D2', 'C3', 'D2', 'G2', 'E2', 'C3', 'D2'], ['r', '', 'f', '', 'o', '']) },
+        { drum: true, notes: S('k - h - s - h k k - h - s - h -') },
+      ],
+    },
     storm: {
       step: 0.22,
       tracks: [

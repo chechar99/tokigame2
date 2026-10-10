@@ -16,7 +16,56 @@ const LEVELS = [
     tip: '¡Ojo con el agua del barrio!\nAl final: un gato gigante.',
     length: 6400, speed: 100, speedMax: 126,
   },
+  {
+    theme: 'parque', name: 'PARQUE DE NOCHE', music: 'parque', boss: 'gato',
+    tip: 'Faroles, bancos y charcos.\nAl final: un gato gigante.',
+    length: 6000, speed: 96, speedMax: 118,
+  },
+  {
+    theme: 'atardecer', name: 'ATARDECER EN EL RÍO', music: 'atardecer', boss: 'pelado',
+    tip: 'El sol baja sobre el río.\nAl final te espera el Pelado.',
+    length: 6200, speed: 98, speedMax: 122,
+  },
 ];
+
+const THEME = {
+  sierras: {
+    sign: 'signSierras',
+    dust: '#c89a6a',
+    animals: ['cat', 'hornero', 'hornero', 'cotorra', 'liebre', 'liebre'],
+    birds: ['hornero', 'cotorra'],
+    deco: [['espinillo', 3], ['palm', 2], ['cardon', 1], ['pasto', 3], ['stone', 1.5]],
+    gap: { bank: '#4a2c18', water: '#2e6aa8', hi: '#3f86c8', deep: '#285c94', spark: '#9ad2f6', edge: '#6e4228' },
+    puddle: { edge: '#23487e', fill: '#3f7fd0', shine: '#8cc8f4' },
+  },
+  docta: {
+    sign: 'signDocta',
+    dust: '#d0ccc4',
+    animals: ['cat', 'cat', 'paloma', 'paloma', 'cotorra', 'hornero'],
+    birds: ['paloma', 'paloma', 'cotorra'],
+    deco: [['lamp', 2], ['lapacho', 2.5], ['bush', 3], ['tree', 2]],
+    gap: { bank: '#4a2c18', water: '#2e6aa8', hi: '#3f86c8', deep: '#285c94', spark: '#9ad2f6', edge: '#6e4228' },
+    puddle: { edge: '#23487e', fill: '#3f7fd0', shine: '#8cc8f4' },
+  },
+  parque: {
+    sign: 'signParque',
+    dust: '#3a5840',
+    animals: ['cat', 'cat', 'cat', 'paloma', 'liebre', 'cotorra'],
+    birds: ['paloma', 'cotorra'],
+    deco: [['lampNight', 3], ['willow', 2.5], ['tree', 2], ['bush', 2], ['flower', 2]],
+    gap: { bank: '#142018', water: '#101830', hi: '#1c3058', deep: '#0a1020', spark: '#d0d8f0', edge: '#1e3024' },
+    puddle: { edge: '#101828', fill: '#1a3050', shine: '#8aa4c8' },
+  },
+  atardecer: {
+    sign: 'signAtardecer',
+    dust: '#c89060',
+    animals: ['hornero', 'cotorra', 'liebre', 'paloma', 'cat'],
+    birds: ['hornero', 'cotorra'],
+    deco: [['palm', 3], ['junco', 2.5], ['espinillo', 2], ['pasto', 2], ['cardon', 1], ['stone', 1.2]],
+    gap: { bank: '#5a3018', water: '#5a2860', hi: '#f0b070', deep: '#3a1848', spark: '#ffe8c0', edge: '#3a2010' },
+    puddle: { edge: '#4a2048', fill: '#8a4070', shine: '#ffd0a0' },
+  },
+};
 
 const Game = {
   state: 'boot', t: 0, stateT: 0, fade: 0,
@@ -41,14 +90,26 @@ function saveHigh() {
 }
 
 // ================= Nivel =================
+function shuffleOrder() {
+  const order = LEVELS.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = randi(0, i);
+    const tmp = order[i];
+    order[i] = order[j];
+    order[j] = tmp;
+  }
+  Game.order = order;
+}
+
 function newGame() {
   Game.score = 0; Game.sogas = 0; Game.hearts = 3;
+  shuffleOrder();
   startLevel(0);
 }
 
 function startLevel(i) {
   Game.levelIndex = i;
-  const def = LEVELS[i % LEVELS.length];
+  const def = LEVELS[Game.order[i % LEVELS.length]];
   Game.levelStartScore = Game.score;
   Game.levelStartSogas = Game.sogas;
   Game.levelStartHearts = Game.hearts;
@@ -65,7 +126,7 @@ function startLevel(i) {
   camX = toki.x - TOKI_SX;
   particles = []; texts = [];
   Game.combo = 0; Game.comboT = 0; Game.speed = def.speed;
-  addObj({ type: 'deco', kind: def.theme === 'sierras' ? 'signSierras' : 'signDocta', x: 30, w: 70 });
+  addObj({ type: 'deco', kind: THEME[def.theme].sign, x: 30, w: 70 });
   generate();
   setState('levelIntro');
   Sound.play(def.music);
@@ -110,12 +171,8 @@ function addAnimal(x, y, kind, opt = {}) {
 function inGap(x0, x1) { return L.gaps.some((g) => x1 > g.x0 && x0 < g.x1); }
 function overGap(x) { return L.gaps.find((g) => x - 3 > g.x0 && x + 3 < g.x1); }
 
-function groundAnimals() {
-  return L.theme === 'sierras'
-    ? ['cat', 'hornero', 'hornero', 'cotorra', 'liebre', 'liebre']
-    : ['cat', 'cat', 'paloma', 'paloma', 'cotorra', 'hornero'];
-}
-function skyBird() { return L.theme === 'sierras' ? choice(['hornero', 'cotorra']) : choice(['paloma', 'paloma', 'cotorra']); }
+function groundAnimals() { return THEME[L.theme].animals; }
+function skyBird() { return choice(THEME[L.theme].birds); }
 
 // ================= Patrones =================
 const PAT = {
@@ -225,6 +282,16 @@ const WEIGHTS = {
     ['hedge', 3, 0], ['bench', 1.5, 0], ['container', 1.5, 0], ['sprinkler', 2.5, 0], ['fountain', 2, 0.1],
     ['cloud', 3, 0], ['animals', 3.5, 0], ['flying', 2, 0], ['tub', 1.5, 0.1], ['power', 0.8, 0.1],
   ],
+  parque: [
+    ['sogaArc', 3, 0], ['sogaLine', 2, 0], ['sogaHigh', 1, 0.15], ['puddle', 2.5, 0], ['puddle2', 1.2, 0.3],
+    ['hedge', 3, 0], ['bench', 2.5, 0], ['fountain', 1.6, 0.15], ['sprinkler', 1.4, 0.2],
+    ['arroyo', 1.3, 0.2], ['animals', 4, 0], ['flying', 1.5, 0.1], ['power', 0.8, 0.12], ['cloud', 0.6, 0.45],
+  ],
+  atardecer: [
+    ['sogaArc', 3, 0], ['sogaLine', 2, 0], ['sogaHigh', 1.2, 0.1], ['puddle', 2, 0], ['puddle2', 1, 0.3],
+    ['rock', 2.5, 0], ['rockStairs', 1.4, 0.15], ['arroyo', 3, 0.05], ['arroyoStone', 1.4, 0.3],
+    ['cloud', 2, 0.1], ['animals', 3, 0], ['flying', 2.2, 0], ['bench', 1.2, 0], ['power', 0.8, 0.12],
+  ],
 };
 
 function pickPattern(d) {
@@ -261,9 +328,7 @@ function placeFinish() {
 function spawnDeco(x) {
   if (inGap(x - 24, x + 24)) return;
   if (L.finishPlaced && x > L.length - 40) return;
-  const kind = L.theme === 'sierras'
-    ? weighted([['espinillo', 3], ['palm', 2], ['cardon', 1], ['pasto', 3], ['stone', 1.5]])
-    : weighted([['lamp', 2], ['lapacho', 2.5], ['bush', 3], ['tree', 2]]);
+  const kind = weighted(THEME[L.theme].deco);
   addObj({ type: 'deco', kind, x, w: 40 });
 }
 
@@ -422,7 +487,7 @@ function updateToki(dt, control) {
     T.dustT -= dt;
     if (T.dustT <= 0) {
       T.dustT = 0.12;
-      spawn(T.x - 7, T.y - 1, rand(-30, -10), rand(-12, -4), 0.35, L.theme === 'sierras' ? '#c89a6a' : '#d0ccc4', { kind: 'dust', size: 3 });
+      spawn(T.x - 7, T.y - 1, rand(-30, -10), rand(-12, -4), 0.35, THEME[L.theme].dust, { kind: 'dust', size: 3 });
     }
   }
   if (T.wetT > 0 && Math.random() < 0.3) spawn(T.x + rand(-6, 8), T.y - rand(4, 14), 0, 20, 0.4, '#8cc8f4', { g: 300, kind: 'drop' });
@@ -616,7 +681,14 @@ function updateWorld(dt, control) {
   updateToki(dt, control);
   if (!L.finished && !L.boss && L.bossAt && toki.x >= L.bossAt) startBoss();
   camX = toki.x - TOKI_SX;
-  if (!L.boss) generate();
+  if (!L.boss) {
+    generate();
+    if (L.theme === 'parque' && Math.random() < dt * 5) {
+      spawn(camX + rand(8, W - 8), rand(24, 118), rand(-8, 8), rand(-5, 5), rand(1.3, 2.4), Math.random() < 0.5 ? '#e8f8a0' : '#fff6c0', { kind: 'star' });
+    } else if (L.theme === 'atardecer' && Math.random() < dt * 2.5) {
+      spawn(camX + rand(0, W), rand(16, 80), rand(-14, -3), rand(2, 10), rand(1.6, 2.8), choice(['#ffd0a0', '#ffe8c0', '#ffb070']), { kind: 'dust', size: 1 });
+    }
+  }
   for (const o of L.objects) { const f = UPD[o.type]; if (f) f(o, dt); }
   L.objects = L.objects.filter((o) => !o.dead && o.x + (o.w || 30) > camX - 100);
   L.plats = L.plats.filter((p) => p.x + p.w > camX - 100);
@@ -702,7 +774,7 @@ function livingAllies() {
 function spawnAlly(flying) {
   const b = L.boss;
   const kind = flying
-    ? (L.theme === 'sierras' ? choice(['hornero', 'cotorra']) : choice(['paloma', 'cotorra']))
+    ? choice(THEME[L.theme].birds)
     : 'cat';
   const gap = Math.max(48, (b.homeX || toki.x + 140) - toki.x - 40);
   const x = toki.x + rand(32, Math.min(100, gap));
@@ -1086,29 +1158,31 @@ const DRAW = {
   },
   gap(o, cx) {
     const x = Math.round(o.x - cx), w = o.w;
+    const c = THEME[L.theme].gap;
     ctx.save();
     ctx.beginPath(); ctx.rect(x, GROUND - 2, w, H); ctx.clip();
-    ctx.fillStyle = '#4a2c18'; ctx.fillRect(x, GROUND - 2, w, 8);
-    ctx.fillStyle = '#2e6aa8'; ctx.fillRect(x, GROUND + 6, w, H);
-    ctx.fillStyle = '#3f86c8'; ctx.fillRect(x, GROUND + 6, w, 3);
-    ctx.fillStyle = '#285c94';
+    ctx.fillStyle = c.bank; ctx.fillRect(x, GROUND - 2, w, 8);
+    ctx.fillStyle = c.water; ctx.fillRect(x, GROUND + 6, w, H);
+    ctx.fillStyle = c.hi; ctx.fillRect(x, GROUND + 6, w, 3);
+    ctx.fillStyle = c.deep;
     for (let y = GROUND + 12; y < H; y += 4) ctx.fillRect(x, y, w, 1);
-    ctx.fillStyle = '#9ad2f6';
+    ctx.fillStyle = c.spark;
     const off = Math.floor(Game.t * 12);
     for (let i = -6; i < w + 6; i += 7) {
       ctx.fillRect(x + i + (off % 7), GROUND + 6 + ((i / 7 + Math.floor(Game.t * 3)) & 1), 3, 1);
       ctx.fillRect(x + i + ((off + 3) % 7), GROUND + 14, 2, 1);
     }
-    ctx.fillStyle = '#6e4228'; ctx.fillRect(x, GROUND - 2, 2, 12); ctx.fillRect(x + w - 2, GROUND - 2, 2, 12);
+    ctx.fillStyle = c.edge; ctx.fillRect(x, GROUND - 2, 2, 12); ctx.fillRect(x + w - 2, GROUND - 2, 2, 12);
     ctx.restore();
     ctx.drawImage(ART.stone, x - 8, GROUND + 3);
     ctx.drawImage(ART.stone, x + w - 8, GROUND + 4);
   },
   puddle(o, cx) {
     const x = Math.round(o.x - cx), w = o.w, y = GROUND;
-    ctx.fillStyle = '#23487e'; ctx.fillRect(x + 2, y - 1, w - 4, 1); ctx.fillRect(x, y, w, 3); ctx.fillRect(x + 2, y + 3, w - 4, 1);
-    ctx.fillStyle = '#3f7fd0'; ctx.fillRect(x + 2, y, w - 4, 3);
-    ctx.fillStyle = '#8cc8f4'; ctx.fillRect(x + 4, y, w - 12, 1);
+    const c = THEME[L.theme].puddle;
+    ctx.fillStyle = c.edge; ctx.fillRect(x + 2, y - 1, w - 4, 1); ctx.fillRect(x, y, w, 3); ctx.fillRect(x + 2, y + 3, w - 4, 1);
+    ctx.fillStyle = c.fill; ctx.fillRect(x + 2, y, w - 4, 3);
+    ctx.fillStyle = c.shine; ctx.fillRect(x + 4, y, w - 12, 1);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(x + 3 + Math.floor((Game.t * 14 + o.x) % Math.max(1, w - 8)), y + 1, 2, 1);
   },
@@ -1332,9 +1406,12 @@ function buildGameArt() {
   Object.assign(DECO_IMG, {
     espinillo: ART.espinillo, palm: ART.palm, cardon: ART.cardon, pasto: ART.pasto, stone: ART.stone,
     lamp: ART.lamp, lapacho: ART.lapacho, tree: ART.tree, bush: ART.bush,
+    lampNight: ART.lampNight, willow: ART.willow, flower: ART.flower, junco: ART.junco,
   });
   DECO_IMG.signSierras = woodSign(['SIERRAS DE', 'CÓRDOBA']);
   DECO_IMG.signEnd = woodSign(['BARRIO', 'DOCTA >']);
+  DECO_IMG.signParque = woodSign(['PARQUE', 'DE NOCHE']);
+  DECO_IMG.signAtardecer = woodSign(['ATARDECER', 'EN EL RÍO']);
 
   const sd = sprite(56, 34, (P) => {
     P.r(2, 2, 52, 22, '#5a5e66'); P.r(2, 2, 52, 1, '#7a7e86'); P.r(2, 23, 52, 1, '#44474e');

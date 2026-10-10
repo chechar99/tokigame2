@@ -125,7 +125,7 @@ function update(dt) {
       updateWorld(dt, false);
       if (Game.stateT > 1.8 && Input.action) {
         Sound.sfx('select');
-        if (L.theme === 'docta') VictoryScene.start();
+        if (L.loop === 0 && (Game.levelIndex + 1) % LEVELS.length === 0) VictoryScene.start();
         else { startLevel(Game.levelIndex + 1); Game.fade = 1; }
       }
       break;
