@@ -420,6 +420,17 @@ function platImage(kind, w, h) {
       P.r(3, h - 1, 3, 2, '#1a1a1a'); P.r(w - 4, h - 1, 3, 2, '#1a1a1a');
       P.r(w / 2 - 4, 6, 8, 3, '#e8e8e8'); P.r(w / 2 - 3, 7, 6, 1, '#2e7a4a');
     }, '#0e1e14', 0, 0);
+  } else if (kind === 'trampoline') {
+    c = sprite(w + 2, h + 2, (P) => {
+      P.r(0, h - 2, 3, 3, '#3a3a3a'); P.r(w - 1, h - 2, 3, 3, '#3a3a3a');
+      for (let x = 2; x < w; x += 2) P.r(x, h - 3, 1, 4, '#5a5a5a');
+      P.r(1, 1, w, 2, '#e83020'); P.r(1, 1, w, 1, '#ff5040');
+      for (let x = 0; x < w; x++) if (x % 2 === 0) P.p(x, 2, '#c02020');
+    }, '#1a1a1a', 0, 0);
+  } else if (kind === 'tightrope') {
+    c = sprite(w + 2, 3, (P) => {
+      P.r(0, 1, w + 2, 1, '#8a7060'); P.r(0, 0, w + 2, 1, '#b09080');
+    }, null, 0, 0);
   }
   platCache[key] = c;
   return c;
@@ -1028,6 +1039,181 @@ function buildGiantCat() {
   };
 }
 
+function buildPayasoEnemy() {
+  const stand = (blink) => sprite(19, 19, (P) => {
+    const C1 = '#ff3050', C2 = '#40d0ff', C3 = '#f8e040', S = '#f6e0d0', H = '#e83020', N = '#ff9070';
+    P.r(7, 14, 6, 4, '#2a2a2a');
+    P.r(7, 13, 6, 1, S);
+    P.e(10, 10, 4, 4, C1); P.e(10, 5, 5, 5, S); P.e(10, 8, 3, 2, N);
+    P.r(7, 2, 7, 1, H); P.r(6, 3, 9, 2, H); P.r(5, 5, 11, 2, H);
+    P.p(4, 6, H); P.p(16, 6, H);
+    if (blink) P.r(8, 7, 5, 1, '#1a1010');
+    else { P.p(8, 7, '#1a1010'); P.p(11, 7, '#1a1010'); }
+    P.r(9, 9, 3, 2, '#c03030'); P.p(10, 9, '#ff6060');
+    P.p(5, 11, C2); P.p(15, 11, C2);
+  }, '#140a0e', 1, 1);
+  const walk = (f) => sprite(20, 19, (P) => {
+    const C1 = '#ff3050', S = '#f6e0d0', H = '#e83020', N = '#ff9070';
+    if (f === 0) { P.r(6, 14, 3, 4, '#2a2a2a'); P.r(11, 15, 3, 3, '#2a2a2a'); }
+    else { P.r(11, 14, 3, 4, '#2a2a2a'); P.r(6, 15, 3, 3, '#2a2a2a'); }
+    P.r(6, 13, 8, 1, S); P.e(10, 10, 4, 4, C1);
+    P.e(10, 5, 5, 5, S); P.e(10, 8, 3, 2, N);
+    P.r(7, 2, 7, 1, H); P.r(6, 3, 9, 2, H); P.r(5, 5, 11, 2, H);
+    P.p(4, 6, H); P.p(16, 6, H);
+    P.p(8, 7, '#1a1010'); P.p(11, 7, '#1a1010');
+    P.r(9, 9, 3, 2, '#c03030'); P.p(10, 9, '#ff6060');
+  }, '#140a0e', 1, 1);
+  return { stand: [stand(0), stand(1)], walk: [walk(0), walk(1)] };
+}
+
+function buildPayasoBoss() {
+  const pose = (name) => sprite(38, 48, (P) => {
+    const C1 = '#ff3050', C2 = '#40d0ff', C3 = '#f8e040', S = '#f6e0d0', H = '#e83020', N = '#ff9070', B = '#2a2a2a';
+    const hurt = name === 'hurt';
+    const juggle = name === 'juggle';
+    P.r(13, 40, 6, 7, B); P.r(21, 41, 6, 6, B);
+    P.r(13, 39, 13, 1, S);
+    P.e(19, 29, 9, 11, C1);
+    P.e(19, 22, 10, 8, S); P.e(19, 26, 6, 4, N);
+    P.r(13, 13, 13, 3, H); P.r(12, 16, 15, 4, H); P.r(11, 20, 17, 3, H);
+    P.p(10, 23, H); P.p(28, 23, H);
+    if (hurt) P.r(14, 23, 11, 2, '#1a1010');
+    else { P.p(14, 23, '#1a1010'); P.p(14, 24, '#1a1010'); P.p(21, 23, '#1a1010'); P.p(21, 24, '#1a1010'); }
+    P.r(16, 28, 7, 4, '#c03030'); P.p(19, 28, '#ff6060');
+    if (juggle) {
+      P.r(5, 18, 4, 8, S); P.r(4, 18, 1, 4, N);
+      P.r(30, 18, 4, 8, S); P.r(33, 18, 1, 4, N);
+      P.e(5, 14, 3, 3, C2); P.e(33, 12, 3, 3, C3);
+    } else {
+      P.r(8, 24, 4, 8, S); P.r(7, 24, 1, 4, N);
+      P.r(28, 24, 4, 8, S); P.r(31, 24, 1, 4, N);
+    }
+    P.p(10, 29, C2); P.p(28, 29, C3);
+  }, '#140a0e', 1, 1);
+  return { idle: pose('idle'), juggle: pose('juggle'), hurt: pose('hurt') };
+}
+
+function buildCircusDeco() {
+  ART.tent = sprite(32, 38, (P) => {
+    const R = '#e83020', W = '#f6e0d0', Y = '#f8e040', B = '#40a0d0';
+    for (let i = 0; i < 10; i++) {
+      const hw = 16 - i * 1.4;
+      P.r(16 - hw, 8 + i * 3, hw * 2, 3, i % 2 ? R : W);
+    }
+    P.r(14, 1, 4, 8, B); P.r(15, 0, 2, 2, Y);
+    for (let x = 0; x < 32; x += 6) { P.p(x, 38, Y); P.p(x + 1, 37, Y); P.p(x + 2, 38, Y); }
+  }, '#1a0a0e');
+  
+  ART.flag = sprite(16, 28, (P) => {
+    const colors = ['#ff3050', '#40d0ff', '#f8e040', '#50ff70'];
+    P.r(2, 0, 2, 28, '#6a4a30');
+    const col = colors[Math.floor(Math.random() * 4)];
+    for (let y = 4; y < 14; y++) P.r(4, y, 10 - Math.abs(y - 9), 1, col);
+  }, '#1a0a0e');
+
+  ART.balloon = sprite(14, 18, (P) => {
+    const colors = [['#ff3050', '#c02040'], ['#40d0ff', '#2090c0'], ['#f8e040', '#d0b030'], ['#50ff70', '#30c050']];
+    const [c1, c2] = colors[Math.floor(Math.random() * 4)];
+    P.e(7, 6, 6, 7, c1); P.e(7, 4, 4, 4, '#ffffff'); P.e(7, 5, 3, 4, c2);
+    P.r(6, 13, 3, 1, c2); P.r(7, 14, 1, 4, '#a08070');
+  }, null);
+
+  ART.balloonFloat = sprite(24, 36, (P) => {
+    const colors = [['#ff3050', '#c02040'], ['#40d0ff', '#2090c0'], ['#f8e040', '#d0b030'], ['#50ff70', '#30c050']];
+    const [c1, c2] = colors[Math.floor(Math.random() * 4)];
+    P.e(12, 10, 10, 12, c1); P.e(12, 7, 7, 7, '#ffffff'); P.e(12, 8, 5, 6, c2);
+    P.r(11, 22, 3, 1, c2); P.r(12, 23, 1, 10, '#a08070');
+    P.r(9, 33, 7, 3, '#8a6040'); P.r(9, 32, 7, 1, '#b08050');
+  }, null);
+
+  ART.popcorn = sprite(18, 22, (P) => {
+    P.r(4, 12, 10, 10, '#e83828'); P.r(5, 11, 8, 1, '#ffffff');
+    for (let i = 0; i < 5; i++) {
+      const x = 6 + Math.floor(Math.random() * 6);
+      const y = 6 + Math.floor(Math.random() * 5);
+      P.r(x, y, 2, 2, '#fff6d0'); P.p(x, y, '#ffffff');
+    }
+  }, '#1a0a0e');
+
+  ART.spotlight = sprite(16, 26, (P) => {
+    P.r(6, 8, 4, 18, '#4a4a4a'); P.r(5, 8, 6, 2, '#6a6a6a');
+    P.r(7, 7, 2, 1, '#f8e040'); P.r(6, 4, 4, 3, '#2a2a2a');
+    P.r(7, 0, 2, 4, '#3a3a3a');
+  }, null);
+
+  ART.cannon = sprite(28, 22, (P) => {
+    P.r(4, 12, 18, 8, '#3a3a3a'); P.r(4, 11, 18, 1, '#5a5a5a');
+    P.r(20, 10, 6, 3, '#2a2a2a'); P.r(20, 9, 6, 1, '#4a4a4a');
+    P.r(2, 20, 4, 2, '#1a1a1a'); P.r(18, 20, 4, 2, '#1a1a1a');
+    P.e(8, 16, 3, 3, '#e83020'); P.e(16, 16, 3, 3, '#e83020');
+  }, null);
+}
+
+function buildCircusBG() {
+  const bg = {};
+  bg.sky = makeSky(['#7040a0', '#8855b0', '#a070c0', '#b890d0', '#d0b0e0', '#e8d0f0', '#f8e8ff'], { x: 100, y: 60, r: 14, col: '#fffaf0', glow: '#ffe8d0' });
+  bg.clouds = makeCloudLayer(520, 32, '#ffd0f0', '#f0b0d8', 4, 18, 55);
+
+  const fw = 480;
+  bg.far = makeCanvas(fw, H);
+  {
+    const g = bg.far.getContext('2d'), P = painter(g), R = mulberry32(23);
+    for (let i = 0; i < 8; i++) {
+      const x = i * 60 + R() * 20;
+      const h = 30 + R() * 40;
+      P.e(x, 140 - h / 2, 22, h / 2, i % 3 === 0 ? '#d070f0' : i % 3 === 1 ? '#70d0ff' : '#f0d070');
+      for (let j = 0; j < Math.floor(h / 6); j++) {
+        P.r(x - 20 + j * 4, 140 - h + j * 3, 40 - j * 8, 3, j % 2 ? '#ff4070' : '#fff0e0');
+      }
+    }
+  }
+
+  bg.mid = makeCanvas(440, H);
+  {
+    const g = bg.mid.getContext('2d'), P = painter(g);
+    for (let i = 0; i < 6; i++) {
+      const x = i * 70 + 10;
+      for (let s = 0; s < 8; s++) {
+        const col = s % 4 === 0 ? '#f8e040' : s % 4 === 1 ? '#ff3050' : s % 4 === 2 ? '#40d0ff' : '#50ff70';
+        P.r(x + s * 3, 40 + s * 12, 3, 12, col);
+      }
+    }
+  }
+
+  bg.near = makeCanvas(380, H);
+  {
+    const g = bg.near.getContext('2d'), P = painter(g), R = mulberry32(29);
+    for (let i = 0; i < 5; i++) {
+      const x = i * 76;
+      const colors = [['#ff3050', '#fff0e0'], ['#40d0ff', '#fff0e0'], ['#f8e040', '#ff3050']];
+      const [c1, c2] = colors[i % 3];
+      for (let j = 0; j < 9; j++) {
+        P.r(x + j * 8, 110, 8, 40, j % 2 ? c1 : c2);
+      }
+      P.r(x, 105, 72, 5, '#6a4030');
+    }
+  }
+
+  bg.ground = sprite(56, 32, (P) => {
+    const R = mulberry32(31);
+    P.r(0, 2, 56, 30, '#d0a870');
+    for (let i = 0; i < 40; i++) P.p(R() * 56, 6 + R() * 24, R() < 0.5 ? '#b89060' : '#e8c090');
+    P.r(0, 2, 56, 3, '#9a7050');
+    for (let x = 0; x < 56; x++) {
+      if (x % 3 === 0) P.p(x, 2, '#b08860');
+      if (R() < 0.3) P.p(x, 1, '#9a7050');
+    }
+  }, null);
+
+  bg.layers = [
+    { img: bg.clouds, f: 0.04, drift: 8 },
+    { img: bg.far, f: 0.15 },
+    { img: bg.mid, f: 0.32 },
+    { img: bg.near, f: 0.55 },
+  ];
+  return bg;
+}
+
 function buildArt() {
   ART.toki = buildTokiSet();
   ART.portrait = buildPortrait();
@@ -1040,18 +1226,22 @@ function buildArt() {
     hornero: buildBird({ body: '#b07040', belly: '#ecd2a8', head: '#9a6038', tail: '#c8602c', beak: '#e0c890', wing: '#8a5028' }),
     paloma: buildBird({ body: '#8e94a8', belly: '#b0b4c4', head: '#6e8a92', tail: '#5a6070', beak: '#d8a0a0', wing: '#70768a', leg: '#d06060' }),
     cotorra: buildBird({ body: '#5cb848', belly: '#b8d4a8', head: '#a8c4b0', tail: '#3c9038', beak: '#e8c090', wing: '#3a8a3a' }),
+    payaso: buildPayasoEnemy(),
   };
   ART.hare = buildHare();
   ART.sock = buildSock();
   ART.hairball = buildHairball();
   ART.pelado = buildPelado();
   ART.giantCat = buildGiantCat();
+  ART.payaso = buildPayasoBoss();
   buildItems();
   buildDeco();
+  buildCircusDeco();
   ART.bg = {
     sierras: buildSierrasBG(),
     docta: buildDoctaBG(),
     parque: buildParqueBG(),
     atardecer: buildAtardecerBG(),
+    circo: buildCircusBG(),
   };
 }

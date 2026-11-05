@@ -26,6 +26,11 @@ const LEVELS = [
     tip: 'El sol baja sobre el río.\nAl final te espera el Pelado.',
     length: 6200, speed: 98, speedMax: 122,
   },
+  {
+    theme: 'circo', name: 'CIRCO EN CÓRDOBA', music: 'circo', boss: 'payaso',
+    tip: '¡Cañones, trampolines y luces!\nAl final: el Payaso Malabares.',
+    length: 6800, speed: 102, speedMax: 128,
+  },
 ];
 
 const THEME = {
@@ -64,6 +69,15 @@ const THEME = {
     deco: [['palm', 3], ['junco', 2.5], ['espinillo', 2], ['pasto', 2], ['cardon', 1], ['stone', 1.2]],
     gap: { bank: '#5a3018', water: '#5a2860', hi: '#f0b070', deep: '#3a1848', spark: '#ffe8c0', edge: '#3a2010' },
     puddle: { edge: '#4a2048', fill: '#8a4070', shine: '#ffd0a0' },
+  },
+  circo: {
+    sign: 'signCirco',
+    dust: '#f0d0a0',
+    animals: ['payaso', 'payaso', 'payaso', 'paloma', 'cat'],
+    birds: ['paloma'],
+    deco: [['tent', 2], ['flag', 3], ['balloon', 2.5], ['popcorn', 1.5], ['spotlight', 2]],
+    gap: { bank: '#4a2c18', water: '#2e6aa8', hi: '#3f86c8', deep: '#285c94', spark: '#9ad2f6', edge: '#6e4228' },
+    puddle: { edge: '#23487e', fill: '#3f7fd0', shine: '#8cc8f4' },
   },
 };
 
@@ -268,6 +282,28 @@ const PAT = {
     return 50;
   },
   fountain(x) { addFountain(x + 12); addSogaArc(x + 2, 5, 66, 52); return 72; },
+  trampoline(x) {
+    addPlat('trampoline', x, 36, 8);
+    addSogaArc(x - 8, 4, 52, 46, GROUND - 12);
+    return 40;
+  },
+  cannon(x) {
+    addObj({ type: 'cannon', x: x + 12, w: 28, t: rand(0, 2.5), fired: false });
+    addSogaArc(x, 5, 52, 38);
+    return 56;
+  },
+  tightrope(x) {
+    const h = randi(38, 52);
+    addPlat('tightrope', x, 64, 1, 1);
+    L.plats[L.plats.length - 1].top = GROUND - h;
+    addSogaLine(x + 8, 4, GROUND - h - 8, 14);
+    return 66;
+  },
+  balloonRide(x) {
+    addObj({ type: 'balloon', x: x + 30, y: GROUND - 54, w: 24, vy: 0, t: 0, phase: 'idle' });
+    addSogaLine(x, 4, GROUND - 8, 14);
+    return 60;
+  },
 };
 
 const HAZARDS = new Set(['puddle', 'puddle2', 'arroyo', 'arroyoStone', 'cloud', 'tub', 'sprinkler', 'fountain']);
@@ -291,6 +327,11 @@ const WEIGHTS = {
     ['sogaArc', 3, 0], ['sogaLine', 2, 0], ['sogaHigh', 1.2, 0.1], ['puddle', 2, 0], ['puddle2', 1, 0.3],
     ['rock', 2.5, 0], ['rockStairs', 1.4, 0.15], ['arroyo', 3, 0.05], ['arroyoStone', 1.4, 0.3],
     ['cloud', 2, 0.1], ['animals', 3, 0], ['flying', 2.2, 0], ['bench', 1.2, 0], ['power', 0.8, 0.12],
+  ],
+  circo: [
+    ['sogaArc', 3, 0], ['sogaLine', 2, 0], ['sogaHigh', 1.5, 0.1], ['puddle', 1.5, 0], ['puddle2', 1, 0.25],
+    ['trampoline', 3.5, 0], ['cannon', 2.5, 0.15], ['tightrope', 2, 0.2], ['balloonRide', 1.8, 0.25],
+    ['animals', 4, 0], ['flying', 1.5, 0], ['power', 0.8, 0.1],
   ],
 };
 
@@ -466,7 +507,22 @@ function updateToki(dt, control) {
       Sound.sfx('land');
       for (let i = 0; i < 4; i++) spawn(T.x + rand(-6, 6), T.y - 1, rand(-30, 30), rand(-20, -5), 0.3, '#d8c8a8', { kind: 'dust', size: 3 });
     }
-    T.vy = 0; T.onGround = true; T.jumps = 0;
+    let trampoline = false;
+    for (const p of L.plats) {
+      if (p.kind === 'trampoline' && T.x + 7 > p.x && T.x - 7 < p.x + p.w && T.y >= p.top - 1 && T.y <= p.top + 2) {
+        trampoline = true;
+        break;
+      }
+    }
+    if (trampoline) {
+      T.vy = -320;
+      T.onGround = false;
+      T.jumps = 1;
+      Sound.sfx('bounce');
+      for (let i = 0; i < 6; i++) spawn(T.x + rand(-8, 8), T.y - 1, rand(-50, 50), rand(-30, -10), 0.4, '#ffd040', { kind: 'star' });
+    } else {
+      T.vy = 0; T.onGround = true; T.jumps = 0;
+    }
   } else {
     if (T.onGround) T.coyote = 0.09;
     T.onGround = false;
@@ -547,8 +603,9 @@ function scareAnimal(o, how) {
   floatText(o.x, o.y - 22, Game.combo > 1 ? '+' + pts + ' X' + Game.combo : '+' + pts, '#ffe070');
   if (o.kind === 'cat') Sound.sfx('cat');
   else if (o.kind === 'liebre') Sound.sfx('hare');
+  else if (o.kind === 'payaso') Sound.sfx('honk');
   else Sound.sfx('bird');
-  if (o.kind !== 'cat' && o.kind !== 'liebre') {
+  if (o.kind !== 'cat' && o.kind !== 'liebre' && o.kind !== 'payaso') {
     const col = { hornero: '#b07040', paloma: '#b0b4c4', cotorra: '#5cb848' }[o.kind];
     for (let i = 0; i < 5; i++) spawn(o.x, o.y - 5, rand(-40, 40), rand(-50, 0), 0.8, col, { g: 60, kind: 'feather' });
   }
@@ -563,6 +620,7 @@ function startFlee(o) {
   }
   if (o.kind === 'cat') { o.vx = Game.speed + 110; o.vy = -170; o.groundY = GROUND; }
   else if (o.kind === 'liebre') { o.vx = Game.speed + 130; o.vy = -160; o.groundY = GROUND; }
+  else if (o.kind === 'payaso') { o.vx = Game.speed + 90; o.vy = -140; o.groundY = GROUND; }
   else { o.vx = Game.speed * 0.5 + rand(20, 50); o.vy = -50; }
 }
 
@@ -655,11 +713,16 @@ const UPD = {
     } else if (o.state === 'alert') {
       if (o.t > 0.22) { o.state = 'flee'; o.t = 0; startFlee(o); }
     } else {
-      if (o.kind === 'cat' || o.kind === 'liebre') {
+      if (o.kind === 'cat' || o.kind === 'liebre' || o.kind === 'payaso') {
         o.vy += GRAV * dt;
         o.x += o.vx * dt;
         o.y += o.vy * dt;
-        if (o.y >= o.groundY) { o.y = o.groundY; o.vy = o.kind === 'liebre' ? -150 : -60; }
+        if (o.y >= o.groundY) {
+          o.y = o.groundY;
+          if (o.kind === 'liebre') o.vy = -150;
+          else if (o.kind === 'payaso') o.vy = -120;
+          else o.vy = -60;
+        }
       } else {
         o.vy -= 70 * dt;
         o.x += o.vx * dt;
@@ -667,6 +730,33 @@ const UPD = {
       }
       if (o.x > camX + W + 40 || o.y < -30) o.dead = true;
     }
+  },
+  cannon(o, dt) {
+    o.t += dt;
+    if (!o.fired && o.x < toki.x + 90 && o.x > toki.x - 20) {
+      o.fired = true;
+      Sound.sfx('cannon');
+      addShot({ kind: 'cannonball', x: o.x + 8, y: GROUND - 16, vx: 140, vy: -180, g: 600 });
+    }
+  },
+  balloon(o, dt) {
+    o.t += dt;
+    if (o.phase === 'idle') {
+      o.y += Math.sin(o.t * 2) * 0.3;
+      if (hitToki(o.x - 10, o.y - 18, o.x + 10, o.y + 2) && toki.vy >= 0) {
+        o.phase = 'ride';
+        o.rideT = 0;
+        toki.vy = -240;
+        toki.jumps = 0;
+        Sound.sfx('bounce');
+      }
+    } else if (o.phase === 'ride') {
+      o.rideT += dt;
+      o.vy = -85;
+      o.y += o.vy * dt;
+      if (o.rideT > 1.2 || o.y < 20) o.phase = 'gone';
+    }
+    if (o.phase === 'gone') o.dead = true;
   },
 };
 
@@ -730,6 +820,15 @@ function createBoss(kind) {
       pattern: ['pounce', 'spit', 'swipe', 'pounce', 'spit'],
       w: ART.giantCat.idle.width, h: ART.giantCat.idle.height,
       hint: '¡SALTA SUS ATAQUES!\nLADRA CUANDO CAE A TU LADO',
+    };
+  }
+  if (kind === 'payaso') {
+    return {
+      ...base, kind, name: 'PAYASO MALABARES',
+      hp: 7 + extra, maxHp: 7 + extra,
+      juggling: 0, jugglePhase: 'idle', nextJuggle: 0.8,
+      w: ART.payaso.idle.width, h: ART.payaso.idle.height,
+      hint: '¡ESQUIVA LAS PELOTAS!\nLADRA LAS PELOTAS PARA DEVOLVERLAS',
     };
   }
   return {
@@ -835,12 +934,13 @@ function updateCharge(o, dt) {
     o.vy = Math.min(420, (o.vy || 0) + GRAV * dt);
     o.x += 128 * dt;
     o.y += o.vy * dt;
-    if (o.y >= GROUND) { o.y = GROUND; o.vy = -70; }
+    if (o.y >= GROUND) { o.y = GROUND; o.vy = o.kind === 'payaso' ? -80 : -70; }
   }
   if (animalHitsBoss(o)) {
     o.dead = true;
-    if (hitBoss()) floatText(o.x, o.y - 18, o.kind === 'cat' ? '¡MIAU!' : '¡PIO!', '#fff4d8', 0.55);
-    sparkle(o.x, o.y - 8, 7, o.kind === 'cat' ? '#e89040' : '#ffe070');
+    const msg = o.kind === 'cat' ? '¡MIAU!' : o.kind === 'payaso' ? '¡HONK!' : '¡PIO!';
+    if (hitBoss()) floatText(o.x, o.y - 18, msg, '#fff4d8', 0.55);
+    sparkle(o.x, o.y - 8, 7, o.kind === 'cat' ? '#e89040' : o.kind === 'payaso' ? '#ff5090' : '#ffe070');
     return;
   }
   if (!L.boss || o.x > camX + W + 36 || o.y < -24) o.dead = true;
@@ -875,6 +975,16 @@ function launchClaw(b) {
   Sound.sfx('whoosh');
 }
 
+function throwJuggleBall(b, high) {
+  const x = b.x + 8;
+  const dist = Math.max(80, x - toki.x);
+  const speed = clamp(dist / 1.0, 110, 200);
+  const vy = high ? -140 : -80;
+  const colors = ['#ff3050', '#40d0ff', '#f8e040', '#50ff70'];
+  addShot({ kind: 'juggleball', x, y: GROUND - 20, vx: -speed, vy, g: 500, color: choice(colors) });
+  Sound.sfx('whoosh');
+}
+
 function updateShots(dt) {
   const barking = toki.barkT > 0.1;
   for (const s of L.shots) {
@@ -887,7 +997,7 @@ function updateShots(dt) {
       spawn(s.x, GROUND - 1, rand(-16, 16), rand(-24, -6), 0.22, '#d8c8a8', { kind: 'dust', size: 2 });
       continue;
     }
-    if (barking) {
+    if (barking && (s.kind !== 'cannonball')) {
       const dx = s.x - toki.x;
       const reach = s.kind === 'claw' ? 72 : 100;
       const vert = s.kind === 'claw' ? 26 : 44;
@@ -896,13 +1006,29 @@ function updateShots(dt) {
         Sound.sfx('poof');
         sparkle(s.x, s.y, 5, '#ffffff');
         floatText(s.x, s.y - 12, '¡FUERA!', '#ffffff', 0.4);
+        if (s.kind === 'juggleball' && L.boss && L.boss.phase === 'fight') {
+          s.vx = Math.abs(s.vx) * 0.7;
+          s.vy = -120;
+          s.dead = false;
+          s.reflected = true;
+        }
         continue;
       }
     }
-    const pad = s.kind === 'claw' ? 7 : 5;
+    if (s.reflected && L.boss && s.x > L.boss.x - 10 && s.x < L.boss.x + 30 && s.y > GROUND - L.boss.h && s.y < GROUND) {
+      s.dead = true;
+      hitBoss();
+      sparkle(s.x, s.y, 8, s.color);
+    }
+    const pad = s.kind === 'claw' ? 7 : (s.kind === 'cannonball' || s.kind === 'juggleball') ? 6 : 5;
     if (hitToki(s.x - pad, s.y - pad, s.x + pad, s.y + 3)) {
       s.dead = true;
-      damage(false, s.kind === 'sock' ? 'sock' : s.kind === 'hair' ? 'hair' : 'claw');
+      if (s.kind === 'cannonball' || s.kind === 'juggleball') {
+        damage(false, 'claw');
+        for (let i = 0; i < 6; i++) spawn(s.x, s.y, rand(-60, 60), rand(-60, -20), 0.4, s.color || '#3a3a3a', { kind: 'dust', size: 2 });
+      } else {
+        damage(false, s.kind === 'sock' ? 'sock' : s.kind === 'hair' ? 'hair' : 'claw');
+      }
     }
   }
   L.shots = L.shots.filter((s) => !s.dead && s.x > camX - 30 && s.y > -40 && s.y < GROUND + 8);
@@ -1022,6 +1148,20 @@ function updateGato(b, dt) {
   }
 }
 
+function updatePayaso(b, dt) {
+  b.x += (b.homeX - b.x) * Math.min(1, dt * 3);
+  b.nextJuggle -= dt;
+  if (b.nextJuggle <= 0) {
+    const count = b.hp > Math.ceil(b.maxHp / 2) ? 1 : 2;
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => throwJuggleBall(b, Math.random() < 0.4), i * 250);
+    }
+    b.nextJuggle = rand(1.2, 2.0);
+    b.juggling = 0.4;
+  }
+  b.juggling = Math.max(0, b.juggling - dt);
+}
+
 function updateBoss(dt) {
   const b = L.boss;
   if (!b) return;
@@ -1048,9 +1188,10 @@ function updateBoss(dt) {
     return;
   }
   if (b.kind === 'pelado') updatePelado(b, dt);
+  else if (b.kind === 'payaso') updatePayaso(b, dt);
   else updateGato(b, dt);
   if (b.phase === 'dead') return;
-  maybeSpawnAlly(b, dt);
+  if (b.kind !== 'payaso') maybeSpawnAlly(b, dt);
   updateShots(dt);
 }
 
@@ -1060,6 +1201,12 @@ function bossFrame(b) {
     if (b.phase === 'dead' || b.state === 'hurt') return P.hurt;
     if (b.state === 'windup') return P.windup;
     if (b.state === 'throw') return P.throw;
+    return P.idle;
+  }
+  if (b.kind === 'payaso') {
+    const P = ART.payaso;
+    if (b.phase === 'dead') return P.hurt;
+    if (b.juggling > 0) return P.juggle;
     return P.idle;
   }
   const G = ART.giantCat;
@@ -1081,6 +1228,22 @@ function drawShots(cx) {
       ctx.restore();
     } else if (s.kind === 'hair') {
       ctx.drawImage(ART.hairball, x - 4, y - 4);
+    } else if (s.kind === 'cannonball') {
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(x - 5, y - 5, 10, 10);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(x - 4, y - 4, 8, 8);
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fillRect(x - 3, y - 3, 3, 3);
+    } else if (s.kind === 'juggleball') {
+      ctx.fillStyle = s.color;
+      for (let r = 5; r >= 0; r--) {
+        ctx.globalAlpha = r === 5 ? 1 : 0.7;
+        ctx.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x - 2, y - 3, 2, 2);
     } else {
       ctx.fillStyle = '#fff6ee';
       ctx.fillRect(x, y - 7, 8, 2);
@@ -1233,6 +1396,10 @@ const DRAW = {
     } else if (o.kind === 'liebre') {
       if (o.state === 'flee') { img = ART.hare.run[o.y < GROUND - 4 ? 0 : 1]; ax = 11; ay = 12; }
       else { img = ART.hare.sit[Math.floor(o.t) % 3 === 0 ? 1 : 0]; ax = 9; ay = 15; }
+    } else if (o.kind === 'payaso') {
+      const p = ART.payaso;
+      if (o.state === 'flee') { img = p.walk[Math.floor(o.t * 10) % 2]; ax = 10; ay = 18; }
+      else { img = p.stand[Math.floor(o.t * 2) % 2]; ax = 9; ay = 18; }
     } else {
       const b = ART.birds[o.kind];
       if (o.state === 'flee') { img = b.fly[Math.floor(o.t * 14) % 2]; ax = 7; ay = 6; }
@@ -1241,6 +1408,14 @@ const DRAW = {
     }
     ctx.drawImage(img, x - ax, y - ay);
     if (o.state === 'alert' || (o.state === 'flee' && o.t < 0.3)) drawText('!', x, y - ay - 9, '#ff4050', { outline: '#1a1020', align: 'center' });
+  },
+  cannon(o, cx) {
+    ctx.drawImage(ART.cannon, Math.round(o.x - cx) - 8, GROUND - 20);
+  },
+  balloon(o, cx) {
+    if (o.phase === 'gone') return;
+    const x = Math.round(o.x - cx), y = Math.round(o.y);
+    ctx.drawImage(ART.balloonFloat, x - 12, y - 18);
   },
 };
 
@@ -1407,11 +1582,13 @@ function buildGameArt() {
     espinillo: ART.espinillo, palm: ART.palm, cardon: ART.cardon, pasto: ART.pasto, stone: ART.stone,
     lamp: ART.lamp, lapacho: ART.lapacho, tree: ART.tree, bush: ART.bush,
     lampNight: ART.lampNight, willow: ART.willow, flower: ART.flower, junco: ART.junco,
+    tent: ART.tent, flag: ART.flag, balloon: ART.balloon, popcorn: ART.popcorn, spotlight: ART.spotlight,
   });
   DECO_IMG.signSierras = woodSign(['SIERRAS DE', 'CÓRDOBA']);
   DECO_IMG.signEnd = woodSign(['BARRIO', 'DOCTA >']);
   DECO_IMG.signParque = woodSign(['PARQUE', 'DE NOCHE']);
   DECO_IMG.signAtardecer = woodSign(['ATARDECER', 'EN EL RÍO']);
+  DECO_IMG.signCirco = woodSign(['CIRCO EN', 'CÓRDOBA']);
 
   const sd = sprite(56, 34, (P) => {
     P.r(2, 2, 52, 22, '#5a5e66'); P.r(2, 2, 52, 1, '#7a7e86'); P.r(2, 23, 52, 1, '#44474e');
