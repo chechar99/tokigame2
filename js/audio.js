@@ -91,6 +91,9 @@ const Sound = (() => {
     roar() { tone(130, 0.38, 'sawtooth', 0.18, 52); tone(86, 0.42, 'square', 0.1, 40); noise(0.32, 0.16, 480, 70); },
     bossHit() { noise(0.1, 0.26, 900, 160); tone(210, 0.12, 'square', 0.15, 70); },
     poof() { noise(0.08, 0.14, 2200, 400, 0, 'bandpass'); tone(480, 0.05, 'square', 0.05, 180); },
+    honk() { tone(200, 0.1, 'square', 0.18, 150); tone(200, 0.15, 'square', 0.14, 150, 0.12); },
+    bounce() { tone(440, 0.08, 'sine', 0.14, 880); tone(660, 0.12, 'sine', 0.1, 1320, 0.08); },
+    cannon() { noise(0.25, 0.4, 300, 80); tone(80, 0.3, 'sine', 0.2, 40); },
   };
 
   function sfx(name) {
@@ -155,6 +158,14 @@ const Sound = (() => {
       tracks: [
         { wave: 'triangle', vol: 0.25, gate: 0.95, notes: bassLine(['A2', 'G#2', 'G2', 'F#2'], ['r', '', '', '', 't', '', '', '']) },
         { wave: 'sawtooth', vol: 0.04, gate: 0.9, notes: S('E5 - - - D#5 - - - D5 - - - C#5 - - -') },
+      ],
+    },
+    circo: {
+      step: 0.12,
+      tracks: [
+        { wave: 'square', vol: 0.095, gate: 0.7, notes: S('C5 E5 G5 C6 - G5 E5 - C5 E5 G5 A5 - E5 C5 - G4 B4 D5 G5 - D5 B4 - G4 B4 D5 F5 - G5 A5 - C5 E5 G5 C6 - G5 E5 - C5 E5 G5 A5 - F5 D5 - E5 - G5 - C6 - G5 - E5 - - - C5 - - -') },
+        { wave: 'triangle', vol: 0.24, gate: 0.85, notes: bassLine(['C3', 'G2', 'G2', 'F2', 'C3', 'G2', 'C3', 'C3'], ['r', '', 'o', '', 'f', '']) },
+        { drum: true, notes: S('k - h - s - h - k - h - s - - h k - h - s - h h k - h - s - h -') },
       ],
     },
   };
